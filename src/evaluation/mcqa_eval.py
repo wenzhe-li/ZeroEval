@@ -4,7 +4,9 @@ import os
 from tabulate import tabulate 
 import re
 import sys
-from eval_utils import load_model_results, extract_values_from_json, extract_first_complete_json, model_specific_extraction, model_name_replacement
+from eval_utils import load_model_results, extract_values_from_json, extract_first_complete_json, model_specific_extraction
+ 
+
 
 def eval_model(model, filepath):
     global private_solutions
@@ -43,7 +45,7 @@ def eval_model(model, filepath):
         correct_answer = item["correct_answer"]
         index_of_correct_answer = item["choices"].index(correct_answer)
         label_of_correct_answer = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[index_of_correct_answer]
-        if  model_answer == label_of_correct_answer or f"{label_of_correct_answer})" in model_answer:
+        if  model_answer == label_of_correct_answer or f"{label_of_correct_answer})" in str(model_answer):
             solved_examples += 1
         else:
             if False and "Llama-3.1" in model: # for debugging 
@@ -66,8 +68,6 @@ def eval_model(model, filepath):
     result["No answer"] = f"{no_answer/num_total_examples*100:.2f}"
     result["Total"] = num_total_examples
     result["Reason Lens"] = f"{sum(reason_lens)/len(reason_lens):.2f}"
-
-    result["Model"] = model_name_replacement(result["Model"])
     return result
 
 
@@ -105,11 +105,14 @@ def gen_results(run_name_folders):
 
 
 if __name__ == "__main__":
-    data_name = sys.argv[1]
-    if data_name not in ["mmlu-redux"]:
-        print(f"Invalid data name: {data_name}")
+    # data_name = sys.argv[1]
+    path = sys.argv[1]
+    data_name = path.split("/")[0]
+    if "mmlu-redux" not in path: #data_name not in ["mmlu-redux"]:
+        print(f"Invalid data name: {path}")
         sys.exit(1)
     run_name_folders = {
-        "greedy": f"result_dirs/{data_name}", 
+        # "greedy": f"result_dirs/{data_name}/{path}", 
+        "greedy": path, 
     }  
     gen_results(run_name_folders)

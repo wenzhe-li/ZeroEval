@@ -2,15 +2,16 @@ import json
 from collections import defaultdict
 import os 
 from tabulate import tabulate
-from datasets import load_dataset
+from datasets import load_dataset, load_from_disk
 
-from eval_utils import load_model_results, extract_last_complete_json, model_name_replacement
+from eval_utils import load_model_results, extract_last_complete_json
 
 private_solutions = {}
 
 def load_private_solutions():
     global private_solutions
-    private_zebra_data = load_dataset("allenai/ZebraLogicBench-private", "grid_mode", split="test")
+    private_zebra_data = load_from_disk("/scratch/gpfs/yl7690/datasets/private_grid_mode_test")
+    # private_zebra_data = load_dataset("allenai/ZebraLogicBench-private", "grid_mode", split="test")
     for item in private_zebra_data:
         private_solutions[item["id"]] = item["solution"] 
     return 
@@ -115,7 +116,6 @@ def eval_model(model, filepath):
     result["Hard Puzzle Acc"] = f"{hard_solved_puzzles/hard_total_puzzles*100:.2f}"
     result["Total Puzzles"] = num_total_puzzles
     result["Reason Lens"] = f"{sum(reason_lens)/len(reason_lens):.2f}"
-    result["Model"] = model_name_replacement(result["Model"])
     return result
 
 

@@ -34,20 +34,52 @@ from together import Together
 
 from task_configs import mapping_task_names, prompt_generation, result_format
 
+def get_moa_prompt(reference_answers):
+    system = f"""You have been provided with a set of responses from various open-source models to the latest user query. Your task is to synthesize these responses into a single, high-quality response. It is crucial to critically evaluate the information provided in these responses, recognizing that some of it may be biased or incorrect. Your response should not simply replicate the given answers but should offer a refined, accurate, and comprehensive reply to the instruction. Ensure your response is well-structured, coherent, and adheres to the highest standards of accuracy and reliability. Responses from models:"""
+    for i, reference in enumerate(reference_answers):
+        system += f"\n {i+1}. {reference}"
+    return system
 
+def apply_template(chat_history, id_strs, model_name, args):
+    model_inputs = []
+    reference_dict_list = []
+    if args.reference_list != "None" and args.reference_list is not None:
+        reference_list = args.reference_list.split(":")
+        for reference in reference_list:
+            with open(reference, "r") as f:
+                data = json.load(f)
+            id_list = [data[i]["id"] for i in range(len(data))]
+            output_list = [data[i]["output"][0] for i in range(len(data))]
+            reference_dict = dict(zip(id_list, output_list))
+            reference_dict_list.append(reference_dict)
 
-def apply_template(chat_history, model_name, args):
-    model_inputs = [] 
     conv = None 
-    for chats in tqdm(chat_history, desc="Applying template", disable=True):
+    for i in tqdm(range(len(chat_history)), desc="Applying template", disable=True):
+        chats = chat_history[i]
+        id_str = id_strs[i]
+
         if args.engine not in ["vllm", "hf"]: 
             model_inputs.append("n/a") # will be handled by another ways.
             continue 
-        else:
+        else:            
             if conv is None or isinstance(conv, HF_Conversation) == False:
                 conv = map_to_conv(model_name)
             else:
                 conv.clear()
+        # add MOA
+        if args.reference_list is not None and args.reference_list != "None":
+            try:
+                old_system_message = conv.system_message 
+                reference_answers = [stored_dict_[id_str] for stored_dict_ in reference_dict_list]
+                moa_system_prompt = get_moa_prompt(reference_answers)
+                conv.set_system_message(old_system_message + "\n\n" + moa_system_prompt)
+            except:
+                if i >= args.end_index:
+                    continue
+                else:
+                    raise ValueError(F"Generating MOA failed for sample-{i}")
+            ### Test
+            ### conv.set_system_message("You are a helpful, respectful and honest assistant. <!!!Test system Prompt!!!>")
         for chat_id, chat in enumerate(chats):
             conv.append_message(conv.roles[chat_id%2], chat)
         conv.append_message(conv.roles[1], None)
@@ -77,7 +109,7 @@ def load_eval_data(args, data_name=None, model_name=None):
                 metadata[key] = []
             metadata[key].append(item[key])
     print("Start applying template")
-    model_inputs = apply_template(chat_history, model_name, args)
+    model_inputs = apply_template(chat_history, id_strs, model_name, args)
     return id_strs, chat_history, model_inputs, metadata
 
 
@@ -321,7 +353,7 @@ def openai_chat_request(
                 **kwargs,
             )
         # print(f"Received response from OpenAI API with model {model}")
-        contents = [] 
+        contents = []
         for choice in response.choices:
             # Check if the response is valid
             if choice.finish_reason not in ['stop', 'length']:

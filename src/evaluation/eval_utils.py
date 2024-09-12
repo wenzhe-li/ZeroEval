@@ -2,18 +2,6 @@ import re
 import os 
 import json 
 
-def model_name_replacement(model_name):
-    model_name = model_name.replace('gemma-2-9b-it@nvidia', 'gemma-2-9b-it') 
-    model_name = model_name.replace('gemma-2-9b-it@together', 'gemma-2-9b-it') 
-    model_name = model_name.replace('gemma-2-27b-it@together', 'gemma-2-27b-it') 
-    model_name = model_name.replace('gemma-2-27b-it@nvidia', 'gemma-2-27b-it') 
-    model_name = model_name.replace('deepseek-chat', 'deepseek-v2-chat-0628')
-    model_name = model_name.replace('deepseek-coder', 'deepseek-v2-coder-0614')
-    model_name = model_name.replace('DeepSeek-Coder-V2-0724', 'deepseek-v2-coder-0724')
-    model_name = model_name.replace('Llama-3.1-405B-Inst-fp8', 'Llama-3.1-405B-Inst-fp8@together') 
-    model_name = model_name.replace('Llama-3.1-405B-Instruct-Turbo', 'Llama-3.1-405B-Inst-fp8@together')
-    model_name = model_name.replace('Meta-Llama-3.1-405B-Instruct@hyperbolic', 'Llama-3.1-405B-Inst@hyperbolic')
-    return model_name
 
 def model_specific_extraction(model_name, prediction_str): 
     if "Llama-3.1" in model_name:
@@ -31,17 +19,26 @@ def load_model_results(run_name_folders):
     model_results = {}
     
     for run_name, folder in run_name_folders.items():
-        if not os.path.exists(folder):
+        if os.path.isdir(folder): 
+            # iterate all json files under the folder 
+            for filename in os.listdir(folder):
+                filepath = os.path.join(folder, filename)
+                if not filename.endswith(".json"):
+                    continue
+                model_name = filename.replace(".json", "")  
+                model_name = f"{model_name}%{run_name}"
+                model_results[model_name] = filepath  
             print(f"Folder {folder} does not exist.")
-            continue
-        # iterate all json files under the folder 
-        for filename in os.listdir(folder):
-            filepath = os.path.join(folder, filename)
+        elif os.path.isfile(folder):
+            filename = folder
             if not filename.endswith(".json"):
-                continue
-            model_name = filename.replace(".json", "")  
-            model_name = f"{model_name}%{run_name}"
-            model_results[model_name] = filepath  
+                raise ValueError("Must specficfied Json file.")
+            else:
+                model_name = filename.replace(".json", "")  
+                model_name = f"{model_name}%{run_name}"
+                model_results[model_name] = filename
+        else:
+            print(f"Pass not exists")
     return model_results
 
 def extract_values_from_json(json_string, keys = ["reasoning", "answer"], allow_no_quotes = False):

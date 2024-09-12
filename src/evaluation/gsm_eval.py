@@ -5,7 +5,23 @@ from tabulate import tabulate
 import re
 import sys 
 from eval_utils import load_model_results, extract_values_from_json, extract_first_complete_json, model_specific_extraction
+ 
 
+
+
+def santize_math_answers(answer):
+    # ignore symbols like $ 
+    answer = answer.replace("$", "").strip()
+    # ignore the units like miles after the number  
+    # remove "," in the number
+    answer = answer.replace(",", "")
+    # convert fractions to float
+    if "/" in answer:
+        try:
+            answer = str(float(eval(answer)))
+        except:
+            pass
+    return answer
 
 def eval_model(model, filepath):
     global private_solutions
@@ -40,14 +56,18 @@ def eval_model(model, filepath):
                     print(correct_answer)
                 continue 
         reason = prediction_json.get("reasoning", "")
-        
-        # We use string to compare the answers, so we need to strip the quotes
-        model_answer = str(prediction_json["answer"]).strip("'\"")
-        correct_answer = str(item["answer"]).strip("'\"")
-        
+        model_answer = str(prediction_json["answer"])
+        correct_answer = item["answer"].replace("#", "").strip()
+        # santize the answers
+        raw_model_answer = model_answer[:]
+        model_answer = santize_math_answers(model_answer)
+        correct_answer = santize_math_answers(correct_answer)
+         
+        first_number_in_model_answer = re.search(r"-?\d+(\.\d+)?", model_answer)
+        first_number_in_correct_answer = re.search(r"-?\d+(\.\d+)?", correct_answer)
         correct = False 
-        if model_answer and correct_answer:
-            if model_answer == correct_answer:
+        if first_number_in_model_answer and first_number_in_correct_answer:
+            if float(first_number_in_model_answer.group()) == float(first_number_in_correct_answer.group()):
                 correct = True
                 # To debug the correct examples
                 if False and "SimPO" in model:
@@ -59,13 +79,18 @@ def eval_model(model, filepath):
             else:
                 # To debug the wrong examples
                 if False and "3.1" in model:
-                    print(f"--- incorrect {item['id']} ---")
                     print(f"Model: {model_answer}, Truth: {correct_answer}")
-                    print(f"Problem: {item['question']}")
-                    print(f"Json: {prediction_json}")
-                    print(f"Extracted from model: {model_answer}, Extracted from truth: {correct_answer}")
+                    print(f"Extracted from model: {first_number_in_model_answer.group()}, Extracted from truth: {first_number_in_correct_answer.group()}")
+                    print("--- incorrect")
         if correct:
             solved_examples += 1
+        
+        # For Debugging:
+        # if item["id"] == "gsm8k-main-test-#2":
+        #     print(f"Raw Model Answer: {raw_model_answer}")
+        #     print(f"Model Answer: {model_answer}, Truth: {correct_answer}")
+        #     print(f"Extracted from model: {first_number_in_model_answer.group()}, Extracted from truth: {first_number_in_correct_answer.group()}") 
+        #     print("--- correct" if correct else "--- incorrect")
 
         # For Debugging:
         if False and "SimPO" in model:
@@ -118,7 +143,7 @@ def gen_results(run_name_folders):
 
 if __name__ == "__main__":
 
-    data_name = "crux" # by default if there is no sys.argv[1]
+    data_name = "gsm" # by default if there is no sys.argv[1]
     if len(sys.argv) > 1:
         data_name = sys.argv[1]
     run_name_folders = {

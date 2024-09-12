@@ -7,19 +7,24 @@ def mapping_task_names(data_name):
     """
     id_name = "id"
     if data_name == "mmlu-redux":
-        dataset = load_dataset("yuchenlin/zero-eval", "mmlu-redux", split="test")
+         dataset = load_from_disk("/scratch/gpfs/yl7690/datasets/mmlu-redux-test")
+         # dataset = load_dataset("yuchenlin/zero-eval", "mmlu-redux", split="test")
     elif data_name == "gsm":
-        dataset = load_dataset("yuchenlin/zero-eval", "gsm", split="test")
+         dataset = load_from_disk("/scratch/gpfs/yl7690/datasets/gsm-test")
+         # dataset = load_dataset("yuchenlin/zero-eval", "gsm", split="test")
     elif data_name == "zebra-grid":
-        dataset = load_dataset("allenai/ZebraLogicBench", "grid_mode", split="test")
+         dataset = load_from_disk("/scratch/gpfs/yl7690/datasets/zebra-grid-test")
+         # dataset = load_dataset("allenai/ZebraLogicBench", "grid_mode", split="test")
     elif data_name == "alpaca_eval":
-        dataset = load_dataset("tatsu-lab/alpaca_eval", "alpaca_eval", split="eval")  
+         dataset = load_dataset("tatsu-lab/alpaca_eval", "alpaca_eval", split="eval")
     elif data_name == "numersense-v2":
-        dataset = load_dataset("yuchenlin/zero-eval", "numersense-v2", split="test")
+         dataset = load_from_disk("/scratch/gpfs/yl7690/datasets/numersense-v2-test")
+         # dataset = load_dataset("yuchenlin/zero-eval", "numersense-v2", split="test")
     elif data_name == "crux":
-        dataset = load_dataset("flydust/zero-eval", "crux", split="test")
+         dataset = load_from_disk("/scratch/gpfs/yl7690/datasets/crux-test")
+         # dataset = load_dataset("flydust/zero-eval", "crux", split="test")
     elif data_name == "math-l5":
-        dataset = load_dataset("AI-MO/aimo-validation-math-level-5", split="train")
+         dataset = load_dataset("AI-MO/aimo-validation-math-level-5", split="train")
     else:
         raise ValueError(f"Data name {data_name} not supported")
     return dataset, id_name

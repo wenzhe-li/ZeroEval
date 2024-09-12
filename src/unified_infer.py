@@ -24,12 +24,15 @@ def parse_args():
     parser.add_argument('--model_pretty_name', default=None, type=str)
     parser.add_argument('--tokenizer_name', default="auto", type=str)
     parser.add_argument('--tensor_parallel_size', type=int, default=1)
+    parser.add_argument('--reference_list', default=None, type=str)
     parser.add_argument('--dtype', type=str, default="auto")
     parser.add_argument('--tokenizer_mode', type=str, default="auto")
     parser.add_argument('--data_name', default="wild_bench", type=str)
     parser.add_argument('--batch_size', default=1, type=int)
     parser.add_argument('--num_outputs', default=1, type=int)
     parser.add_argument('--top_p',default=1, type=float)
+    parser.add_argument('--seed',default=1, type=int)
+    parser.add_argument('--debug',default=0, type=int)
     parser.add_argument('--temperature',default=0, type=float)
     parser.add_argument('--repetition_penalty',default=1, type=float)
     parser.add_argument('--max_tokens',default=7500, type=int)
@@ -89,10 +92,10 @@ if __name__ == "__main__":
     args = parse_args()
     args = sanitize_args(args)
 
-   
 
     # Load the model
     print("loading model!")
+    print(F"Inferencing with temperature {args.temperature} and seed {args.seed}")
     if args.tokenizer_name == "auto":
         args.tokenizer_name = args.model_name
     if args.engine == "vllm":
@@ -140,6 +143,8 @@ if __name__ == "__main__":
 
 
     # decide start_index and end_index by num_shards and shard_id  
+    if args.debug:
+        args.end_index = 17
     if args.num_shards > 1:
         num_data = len(id_strs)
         shard_size = num_data // args.num_shards
@@ -212,7 +217,7 @@ if __name__ == "__main__":
     if args.engine == "vllm":
 
         sampling_params = SamplingParams(top_p=args.top_p, temperature=args.temperature, repetition_penalty=args.repetition_penalty, max_tokens=args.max_tokens,
-                                         stop=stop_words, stop_token_ids=stop_token_ids, include_stop_str_in_output=include_stop_str_in_output, n=args.num_outputs)
+                                         stop=stop_words, stop_token_ids=stop_token_ids, include_stop_str_in_output=include_stop_str_in_output, n=args.num_outputs, seed=args.seed)
         for cur_id in tqdm(range(0, len(todo_inputs), args.batch_size), desc=f"Generating {args.model_name} from {args.start_index} to {args.end_index}"):
             batch_inputs = todo_inputs[cur_id:cur_id+args.batch_size]
             batch_outputs = llm.generate(batch_inputs, sampling_params, use_tqdm=False, lora_request=lora_request)
@@ -231,6 +236,7 @@ if __name__ == "__main__":
                 "eof_strings": "|".join(stop_words),
                 "max_output_tokens": args.max_tokens,
                 "no_repeat_ngram_size": args.no_repeat_ngram_size,
+                "seed": args.seed,
             }
             batch_outputs = llm.infer_generate(batch_inputs, args=sampling_params)
             outputs.extend(batch_outputs) # TODO: enbale multiple generation
